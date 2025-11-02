@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum CompanySize {
+  SMALL      // 1-50 employees
+  MEDIUM     // 51-500
+  LARGE      // 501-5000
+  ENTERPRISE // 5000+
+}
+
+enum CompanyType {
+  STARTUP
+  PRIVATE
+  PUBLIC
+  NONPROFIT
+}
+
+enum Seniority {
+  ENTRY
+  MID
+  SENIOR
+  PRINCIPAL
+  VP
+}
+
+enum ContactStatus {
+  TO_REACH_OUT
+  REACHED_OUT
+  RESPONDED
+  CONNECTED
+  MEETING_SCHEDULED
+  NO_RESPONSE
+  NOT_INTERESTED
+}
+
+enum ApplicationStatus {
+  NOT_STARTED
+  APPLIED_NO_REFERRAL
+  APPLIED_WITH_REFERRAL
+  PHONE_SCREEN
+  EARLY_STAGES
+  FINAL_ROUND
+  OFFER_RECEIVED
+  OFFER_ACCEPTED
+  OFFER_DECLINED
+  REJECTED
+  WITHDRAWN
+}
+
+enum Priority {
+  LOW      // 1-2
+  MEDIUM   // 3
+  HIGH     // 4-5
+}
+
+enum RemoteType {
+  ONSITE
+  HYBRID
+  REMOTE
+  FLEXIBLE
+}
+
+enum Preference {
+  STRONGLY_PREFER  // Dream job
+  PREFER           // Would be great
+  NEUTRAL          // Don't care much
+  AVOID            // Not ideal
+  DEALBREAKER      // Won't take it
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model Company {
+  id           String      @id @default(uuid())
+  name         String      @unique
+  size         CompanySize?
+  type         CompanyType?
+  rating       Int?        @db.SmallInt // 1-5 stars
+  comments     String?     @db.Text
+  
+  contacts     Contact[]
+  applications Application[]
+  
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("Company")
+}
+
+model Contact {
+  id              String        @id @default(uuid())
+  name            String
+  linkedinProfile String?
+  email           String?
+  phone           String?
+  title           String?       // Their job title
+  seniority       Seniority?
+  contactStatus   ContactStatus @default(TO_REACH_OUT)
+  referredBy      String?       // Who referred you to them
+  notes           String?       @db.Text
+  
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  applications    ApplicationContact[]
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("Contact")
+}
+
+model Application {
+  id              String            @id @default(uuid())
+  jobTitle        String
+  linkedinUrl     String?
+  companyJobUrl   String?           // Company's career page URL
+  priority        Priority          @default(MEDIUM)
+  salaryMin       Int?
+  salaryMax       Int?
+  status          ApplicationStatus @default(NOT_STARTED)
+  
+  // Location details
+  location        String?           // City, State
+  remoteType      RemoteType?
+  preference      Preference        @default(NEUTRAL)
+  
+  // Important dates
+  postedDate      DateTime?
+  postingEndDate  DateTime?
+  appliedDate     DateTime?
+  offerDeadline   DateTime?
+  
+  // Notes
+  comments        String?           @db.Text
+  
+  companyId       String
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  contacts        ApplicationContact[]
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@map("Application")
+}
+
+model ApplicationContact {
+  id            String      @id @default(uuid())
+  applicationId String
+  contactId     String
+  role          String?     // e.g., "Referral", "Hiring Manager", "Recruiter"
+  
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  contact       Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime    @default(now())
+
+  @@unique([applicationId, contactId])
+  @@map("ApplicationContact")
+}
