@@ -3,126 +3,149 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-    console.log('🌱 Starting seed...')
+    console.log('🔍 Checking if database needs seeding...')
 
-    // Create Companies
-    const techCorp = await prisma.company.upsert({
-        where: { name: 'TechCorp' },
-        update: {},
-        create: {
+    // Check if data already exists
+    const existingCompanies = await prisma.company.count()
+
+    if (existingCompanies > 0) {
+        console.log('⏭️  Database already seeded, skipping...')
+        return
+    }
+
+    console.log('🌱 Starting database seed...')
+
+    // Create companies
+    console.log('Creating companies...')
+    const techCorp = await prisma.company.create({
+        data: {
             name: 'TechCorp',
-            size: 'MEDIUM',
-            type: 'STARTUP',
-            rating: 4,
-            comments: 'Fast-growing startup with great culture'
-        }
+            size: 'LARGE',
+            type: 'PUBLIC',
+            comments: 'Great benefits and work-life balance',
+        },
     })
-    console.log('✅ Created company:', techCorp.name)
 
-    const bigTech = await prisma.company.upsert({
-        where: { name: 'MegaCorp' },
-        update: {},
-        create: {
+    const startupCo = await prisma.company.create({
+        data: {
+            name: 'StartupCo',
+            size: 'SMALL',
+            type: 'STARTUP',
+            comments: 'Fast-paced environment',
+        },
+    })
+
+    const megaCorp = await prisma.company.create({
+        data: {
             name: 'MegaCorp',
             size: 'ENTERPRISE',
             type: 'PUBLIC',
-            rating: 5,
-            comments: 'Large tech company with excellent benefits'
-        }
+        },
     })
-    console.log('✅ Created company:', bigTech.name)
 
-    // Create Contacts
+    // Create contacts
+    console.log('Creating contacts...')
     const contact1 = await prisma.contact.create({
         data: {
             name: 'John Doe',
-            email: 'john.doe@techcorp.com',
+            email: 'john@techcorp.com',
             title: 'Senior Engineering Manager',
-            linkedinProfile: 'linkedin.com/in/johndoe',
+            linkedinProfile: 'https://linkedin.com/in/johndoe',
             seniority: 'SENIOR',
             contactStatus: 'CONNECTED',
             companyId: techCorp.id,
-            notes: 'Met at conference, very helpful'
-        }
+        },
     })
-    console.log('✅ Created contact:', contact1.name)
 
     const contact2 = await prisma.contact.create({
         data: {
             name: 'Jane Smith',
-            email: 'jane.smith@megacorp.com',
-            title: 'Technical Recruiter',
-            linkedinProfile: 'linkedin.com/in/janesmith',
-            seniority: 'MID',
-            contactStatus: 'TO_REACH_OUT',
-            companyId: bigTech.id
-        }
+            email: 'jane@startupco.com',
+            title: 'CTO',
+            seniority: 'VP',
+            contactStatus: 'REACHED_OUT',
+            companyId: startupCo.id,
+        },
     })
-    console.log('✅ Created contact:', contact2.name)
 
-    // Create Applications
+    // Create applications
+    console.log('Creating applications...')
     const app1 = await prisma.application.create({
         data: {
-            jobTitle: 'Senior Software Engineer',
-            linkedinUrl: 'linkedin.com/jobs/123',
-            companyJobUrl: 'techcorp.com/careers/senior-swe',
+            jobTitle: 'Senior Backend Engineer',
+            linkedinUrl: 'https://linkedin.com/jobs/12345',
             priority: 'HIGH',
-            salaryMin: 150000,
-            salaryMax: 200000,
-            status: 'NOT_STARTED',
+            status: 'APPLIED_WITH_REFERRAL',
             location: 'San Francisco, CA',
             remoteType: 'HYBRID',
-            preference: 'PREFER',
-            postedDate: new Date('2024-10-15'),
-            comments: 'Great opportunity, matches my skills',
-            companyId: techCorp.id
-        }
+            preference: 'STRONGLY_PREFER',
+            salaryMin: 150000,
+            salaryMax: 200000,
+            appliedDate: new Date().toISOString(),
+            companyId: techCorp.id,
+        },
     })
-    console.log('✅ Created application:', app1.jobTitle)
 
     const app2 = await prisma.application.create({
         data: {
-            jobTitle: 'Staff Engineer',
-            linkedinUrl: 'linkedin.com/jobs/456',
+            jobTitle: 'Full Stack Engineer',
             priority: 'MEDIUM',
-            salaryMin: 180000,
-            salaryMax: 250000,
-            status: 'APPLIED_WITH_REFERRAL',
+            status: 'NOT_STARTED',
             location: 'Remote',
             remoteType: 'REMOTE',
-            preference: 'STRONGLY_PREFER',
-            appliedDate: new Date('2024-10-20'),
-            comments: 'Applied through John',
-            companyId: bigTech.id
-        }
+            preference: 'PREFER',
+            salaryMin: 120000,
+            salaryMax: 160000,
+            companyId: startupCo.id,
+        },
     })
-    console.log('✅ Created application:', app2.jobTitle)
 
-    // Link Contacts to Applications
+    const app3 = await prisma.application.create({
+        data: {
+            jobTitle: 'Engineering Manager',
+            priority: 'LOW',
+            status: 'EARLY_STAGES',
+            location: 'New York, NY',
+            remoteType: 'ONSITE',
+            preference: 'NEUTRAL',
+            companyId: megaCorp.id,
+        },
+    })
+
+    // Link contacts to applications
+    console.log('Linking contacts to applications...')
     await prisma.applicationContact.create({
         data: {
             applicationId: app1.id,
             contactId: contact1.id,
-            role: 'Referral'
-        }
+            role: 'Referral',
+        },
     })
-    console.log('✅ Linked contact to application')
 
     await prisma.applicationContact.create({
         data: {
             applicationId: app2.id,
             contactId: contact2.id,
-            role: 'Recruiter'
-        }
+            role: 'Hiring Manager',
+        },
     })
-    console.log('✅ Linked contact to application')
 
-    console.log('🎉 Seed complete!')
+    const stats = {
+        companies: await prisma.company.count(),
+        contacts: await prisma.contact.count(),
+        applications: await prisma.application.count(),
+    }
+
+    console.log(`📊 Successfully seeded with:`)
+    console.log(`   - Companies: ${stats.companies}`)
+    console.log(`   - Contacts: ${stats.contacts}`)
+    console.log(`   - Applications: ${stats.applications}`)
 }
 
 main()
     .catch((e) => {
-        console.error('❌ Seed failed:', e)
+        console.error('❌ Seeding failed:')
+        console.error(e)
         process.exit(1)
     })
     .finally(async () => {

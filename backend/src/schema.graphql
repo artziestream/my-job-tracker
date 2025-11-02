@@ -1,0 +1,293 @@
+# ============================================
+# ENUMS (must match Prisma schema exactly)
+# ============================================
+
+enum CompanySize {
+  SMALL
+  MEDIUM
+  LARGE
+  ENTERPRISE
+}
+
+enum CompanyType {
+  STARTUP
+  PRIVATE
+  PUBLIC
+  NONPROFIT
+}
+
+enum Seniority {
+  ENTRY
+  MID
+  SENIOR
+  PRINCIPAL
+  VP
+}
+
+enum ContactStatus {
+  TO_REACH_OUT
+  REACHED_OUT
+  RESPONDED
+  CONNECTED
+  MEETING_SCHEDULED
+  NO_RESPONSE
+  NOT_INTERESTED
+}
+
+enum ApplicationStatus {
+  NOT_STARTED
+  APPLIED_NO_REFERRAL
+  APPLIED_WITH_REFERRAL
+  PHONE_SCREEN
+  EARLY_STAGES
+  FINAL_ROUND
+  OFFER_RECEIVED
+  OFFER_ACCEPTED
+  OFFER_DECLINED
+  REJECTED
+  WITHDRAWN
+}
+
+enum Preference {
+  STRONGLY_PREFER
+  PREFER
+  NEUTRAL
+  AVOID
+  DEALBREAKER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RemoteType {
+  ONSITE
+  HYBRID
+  REMOTE
+  FLEXIBLE
+}
+
+# ============================================
+# TYPES (represent your database models)
+# ============================================
+
+type Company {
+  id: ID!
+  name: String!
+  size: CompanySize
+  type: CompanyType
+  comments: String
+  
+  # Relationships
+  contacts: [Contact!]!
+  applications: [Application!]!
+  
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Contact {
+  id: ID!
+  name: String!
+  email: String
+  phone: String
+  title: String
+  linkedinProfile: String
+  seniority: Seniority
+  contactStatus: ContactStatus!
+  referredBy: String
+  notes: String
+  
+  # Relationships
+  company: Company!
+  applications: [Application!]!
+  
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Application {
+  id: ID!
+  jobTitle: String!
+  linkedinUrl: String
+  companyJobUrl: String
+  priority: Priority!
+  salaryMin: Int
+  salaryMax: Int
+  status: ApplicationStatus!
+  location: String
+  remoteType: RemoteType
+  preference: Preference!
+  postedDate: String
+  postingEndDate: String
+  appliedDate: String
+  offerDeadline: String
+  comments: String
+  requirements: String
+  
+  # Relationships
+  company: Company!
+  contacts: [Contact!]!
+  
+  createdAt: String!
+  updatedAt: String!
+}
+
+# ============================================
+# FILTER INPUTS
+# ============================================
+
+input CompanyFilterInput {
+  name: String
+  size: CompanySize
+  type: CompanyType
+}
+
+input ContactFilterInput {
+  name: String
+  email: String
+  title: String
+  seniority: Seniority
+  contactStatus: ContactStatus
+  companyId: ID
+}
+
+input ApplicationFilterInput {
+  jobTitle: String
+  companyId: ID
+  priority: Priority
+  status: ApplicationStatus
+  location: String
+  remoteType: RemoteType
+  preference: Preference
+  minSalary: Int
+  maxSalary: Int
+}
+
+# ============================================
+# QUERIES (updated)
+# ============================================
+
+type Query {
+  # Companies
+  companies(filter: CompanyFilterInput): [Company!]!
+  company(id: ID!): Company
+  
+  # Contacts
+  contacts(filter: ContactFilterInput): [Contact!]!
+  contact(id: ID!): Contact
+  
+  # Applications
+  applications(filter: ApplicationFilterInput): [Application!]!
+  application(id: ID!): Application
+}
+
+# ============================================
+# MUTATIONS (write operations)
+# ============================================
+
+type Mutation {
+  # Company operations
+  createCompany(input: CreateCompanyInput!): Company!
+  updateCompany(id: ID!, input: UpdateCompanyInput!): Company!
+  deleteCompany(id: ID!): Company!
+  
+  # Contact operations
+  createContact(input: CreateContactInput!): Contact!
+  updateContact(id: ID!, input: UpdateContactInput!): Contact!
+  deleteContact(id: ID!): Contact!
+  
+  # Application operations
+  createApplication(input: CreateApplicationInput!): Application!
+  updateApplication(id: ID!, input: UpdateApplicationInput!): Application!
+  deleteApplication(id: ID!): Application!
+  
+  # Link contact to application
+  linkContactToApplication(applicationId: ID!, contactId: ID!, role: String): Application!
+}
+
+# ============================================
+# INPUT TYPES (for mutations)
+# ============================================
+
+input CreateCompanyInput {
+  name: String!
+  size: CompanySize
+  type: CompanyType
+  comments: String
+}
+
+input UpdateCompanyInput {
+  name: String
+  size: CompanySize
+  type: CompanyType
+  comments: String
+}
+
+input CreateContactInput {
+  name: String!
+  email: String
+  phone: String
+  title: String
+  linkedinProfile: String
+  seniority: Seniority
+  contactStatus: ContactStatus
+  referredBy: String
+  notes: String
+  companyId: ID!
+}
+
+input UpdateContactInput {
+  name: String
+  email: String
+  phone: String
+  title: String
+  linkedinProfile: String
+  seniority: Seniority
+  contactStatus: ContactStatus
+  referredBy: String
+  notes: String
+  companyId: ID
+}
+
+input CreateApplicationInput {
+  jobTitle: String!
+  linkedinUrl: String
+  companyJobUrl: String
+  priority: Priority
+  salaryMin: Int
+  salaryMax: Int
+  status: ApplicationStatus
+  location: String
+  remoteType: RemoteType
+  preference: Preference
+  postedDate: String
+  postingEndDate: String
+  appliedDate: String
+  offerDeadline: String
+  comments: String
+  requirements: String
+  companyId: ID!
+}
+
+input UpdateApplicationInput {
+  jobTitle: String
+  linkedinUrl: String
+  companyJobUrl: String
+  priority: Priority
+  salaryMin: Int
+  salaryMax: Int
+  status: ApplicationStatus
+  location: String
+  remoteType: RemoteType
+  preference: Preference
+  postedDate: String
+  postingEndDate: String
+  appliedDate: String
+  offerDeadline: String
+  comments: String
+  requirements: String
+  companyId: ID
+}

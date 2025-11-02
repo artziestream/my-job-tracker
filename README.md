@@ -1,76 +1,147 @@
 # Job Application Tracker
 
-A full-stack application to track job applications with GraphQL, built with Vue 3, Node.js, and PostgreSQL.
+A full-stack application to manage job applications, contacts, and companies with a GraphQL API.
 
-## Tech Stack
+## 🚀 Tech Stack
 
-- **Frontend**: Vue 3 + TypeScript + Vite + Apollo Client
 - **Backend**: Node.js + TypeScript + Apollo Server + Prisma
-- **Database**: PostgreSQL
+- **Database**: PostgreSQL 16
+- **API**: GraphQL with Apollo Server
+- **ORM**: Prisma
 - **Containerization**: Docker + Docker Compose
 
-## Prerequisites
+## 📋 Prerequisites
 
-- Docker Desktop installed and running
-- Node.js 20+ (for local development)
-- Git
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose)
+- Node.js 20+ and pnpm (for local development only)
 
-## Quick Start
+## 🏃 Quick Start
 
-1. Clone the repository:
-   ```bash
-   git clone <your-repo-url>
-   cd my-job-tracker
-   ```
-
-2. Start all services:
-   ```bash
-   docker-compose up --build
-   ```
-
-3. Access the application:
-   - Frontend: http://localhost:5173
-   - Backend GraphQL Playground: http://localhost:4000/graphql
-   - Database: localhost:5432
-
-## Development
-
-### First Time Setup
-
-After starting Docker containers for the first time, initialize the database:
+### Start Everything
 
 ```bash
-# Enter the backend container
-docker exec -it job-tracker-backend sh
+# Clone and enter the project
+git clone <your-repo-url>
+cd my-job-tracker
 
-# Run Prisma migrations
-npx prisma migrate dev
-
-# Seed the database (optional)
-npx prisma db seed
-
-# Exit container
-exit
-```
-
-### Stopping Services
-
-```bash
-docker-compose down
-```
-
-### Resetting Database
-
-```bash
-docker-compose down -v
+# Start all services
 docker-compose up --build
 ```
 
-## Project Structure
+### Access Services
 
-```text
-my-job-tracker/
-├── backend/          # Node.js + Apollo Server + Prisma
-├── frontend/         # Vue 3 + Apollo Client
-└── docker-compose.yml
+- **GraphQL API**: http://localhost:4000
+- **Prisma Studio**: http://localhost:5555
+- **PostgreSQL**: `localhost:5432`
+
+The database will be automatically migrated and seeded on first run.
+
+## 📊 Using the API
+
+### GraphQL Playground
+
+Open http://localhost:4000 in your browser to access Apollo Studio.
+
+**Example Query:**
+```graphql
+query {
+  companies {
+    id
+    name
+    applications {
+      jobTitle
+      status
+    }
+  }
+}
 ```
+
+**Example Mutation:**
+```graphql
+mutation {
+  createCompany(input: {
+    name: "Acme Corp"
+    size: MEDIUM
+    type: STARTUP
+  }) {
+    id
+    name
+  }
+}
+```
+
+### Command Line (curl)
+
+```bash
+curl -X POST http://localhost:4000/ \
+  -H "Content-Type: application/json" \
+  -d '{"query": "{ companies { name } }"}' | jq
+```
+
+### Prisma Studio
+
+Visual database browser at http://localhost:5555
+
+```bash
+# Or start manually from inside container
+docker-compose exec backend pnpm prisma:studio
+```
+
+## 🛠️ Development
+
+### Useful Commands
+
+```bash
+# View logs
+docker-compose logs -f backend
+
+# Restart services
+docker-compose restart
+
+# Stop services
+docker-compose down
+
+# Reset database (warning: deletes all data)
+docker-compose down -v
+docker-compose up --build
+
+# Enter backend container
+docker-compose exec backend sh
+
+# Run Prisma commands
+docker-compose exec backend pnpm prisma:studio
+docker-compose exec backend pnpm prisma:migrate:dev
+```
+
+### Local Development (Outside Docker)
+
+```bash
+cd backend
+
+# Install dependencies
+pnpm install
+
+# Start database only
+docker-compose up db
+
+# Run migrations
+pnpm prisma:migrate:dev
+
+# Start dev server
+pnpm dev:all  # Starts both GraphQL server and Prisma Studio
+```
+
+## 🗄️ Data Models
+
+- **Company**: Organizations you're applying to
+- **Contact**: People at companies (recruiters, engineers, etc.)
+- **Application**: Job applications with status tracking
+- **ApplicationContact**: Links contacts to specific applications
+
+## 🔧 Environment Variables
+
+Create `backend/.env` for local development:
+
+```env
+DATABASE_URL="postgresql://jobtracker:jobtracker@localhost:5432/jobtracker"
+PORT=4000

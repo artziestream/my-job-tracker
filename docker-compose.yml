@@ -28,8 +28,10 @@ services:
     environment:
       DATABASE_URL: postgresql://jobtracker:jobtracker@db:5432/jobtracker
       PORT: 4000
+      NODE_ENV: development
     ports:
       - "4000:4000"
+      - "5555:5555"
     depends_on:
       db:
         condition: service_healthy
@@ -37,24 +39,11 @@ services:
       - ./backend:/app
       - /app/node_modules
       - /app/dist
-
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: job-tracker-frontend
-  #   restart: unless-stopped
-  #   environment:
-  #     VITE_GRAPHQL_URL: http://localhost:4000/graphql
-  #   ports:
-  #     - "5173:5173"
-  #   depends_on:
-  #     - backend
-  #   volumes:
-  #     - ./frontend:/app
-  #     - /app/node_modules
-  #   stdin_open: true
-  #   tty: true
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "4000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 volumes:
   postgres_data:
