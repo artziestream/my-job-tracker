@@ -102,7 +102,9 @@ type Contact {
   
   # Relationships
   company: Company!
-  applications: [Application!]!
+  
+  # ✅ NEW: Junction table links (which applications is this contact involved in?)
+  applicationLinks: [ApplicationContact!]!
   
   createdAt: String!
   updatedAt: String!
@@ -125,14 +127,22 @@ type Application {
   appliedDate: String
   offerDeadline: String
   comments: String
-  requirements: String
   
   # Relationships
   company: Company!
-  contacts: [Contact!]!
+  
+  contactLinks: [ApplicationContact!]!
   
   createdAt: String!
   updatedAt: String!
+}
+
+type ApplicationContact {
+  id: ID!
+  role: String
+  contact: Contact!
+  application: Application!
+  createdAt: String!
 }
 
 # ============================================
@@ -167,7 +177,7 @@ input ApplicationFilterInput {
 }
 
 # ============================================
-# QUERIES (updated)
+# QUERIES
 # ============================================
 
 type Query {
@@ -185,7 +195,7 @@ type Query {
 }
 
 # ============================================
-# MUTATIONS (write operations)
+# MUTATIONS
 # ============================================
 
 type Mutation {
@@ -204,8 +214,9 @@ type Mutation {
   updateApplication(id: ID!, input: UpdateApplicationInput!): Application!
   deleteApplication(id: ID!): Application!
   
-  # Link contact to application
-  linkContactToApplication(applicationId: ID!, contactId: ID!, role: String): Application!
+  linkContactToApplication(applicationId: ID!, contactId: ID!, role: String): ApplicationContact!
+  unlinkContactFromApplication(applicationContactId: ID!): ApplicationContact!
+  updateApplicationContact(id: ID!, role: String): ApplicationContact!
 }
 
 # ============================================
@@ -249,7 +260,6 @@ input UpdateContactInput {
   contactStatus: ContactStatus
   referredBy: String
   notes: String
-  companyId: ID
 }
 
 input CreateApplicationInput {
@@ -268,7 +278,6 @@ input CreateApplicationInput {
   appliedDate: String
   offerDeadline: String
   comments: String
-  requirements: String
   companyId: ID!
 }
 
@@ -288,6 +297,5 @@ input UpdateApplicationInput {
   appliedDate: String
   offerDeadline: String
   comments: String
-  requirements: String
   companyId: ID
 }

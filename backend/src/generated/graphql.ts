@@ -8,6 +8,7 @@ export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: 
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
 export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = { [_ in K]?: never };
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
+export type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 export type RequireFields<T, K extends keyof T> = Omit<T, K> & { [P in K]-?: NonNullable<T[P]> };
 /** All built-in and custom scalars, mapped to their actual values */
 export type Scalars = {
@@ -23,7 +24,7 @@ export type Application = {
   comments?: Maybe<Scalars['String']['output']>;
   company: Company;
   companyJobUrl?: Maybe<Scalars['String']['output']>;
-  contacts: Array<Contact>;
+  contactLinks: Array<ApplicationContact>;
   createdAt: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   jobTitle: Scalars['String']['output'];
@@ -35,11 +36,18 @@ export type Application = {
   preference: Preference;
   priority: Priority;
   remoteType?: Maybe<RemoteType>;
-  requirements?: Maybe<Scalars['String']['output']>;
   salaryMax?: Maybe<Scalars['Int']['output']>;
   salaryMin?: Maybe<Scalars['Int']['output']>;
   status: ApplicationStatus;
   updatedAt: Scalars['String']['output'];
+};
+
+export type ApplicationContact = {
+  application: Application;
+  contact: Contact;
+  createdAt: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  role?: Maybe<Scalars['String']['output']>;
 };
 
 export type ApplicationFilterInput = {
@@ -98,7 +106,7 @@ export type CompanyType =
   | 'STARTUP';
 
 export type Contact = {
-  applications: Array<Application>;
+  applicationLinks: Array<ApplicationContact>;
   company: Company;
   contactStatus: ContactStatus;
   createdAt: Scalars['String']['output'];
@@ -146,7 +154,6 @@ export type CreateApplicationInput = {
   preference?: InputMaybe<Preference>;
   priority?: InputMaybe<Priority>;
   remoteType?: InputMaybe<RemoteType>;
-  requirements?: InputMaybe<Scalars['String']['input']>;
   salaryMax?: InputMaybe<Scalars['Int']['input']>;
   salaryMin?: InputMaybe<Scalars['Int']['input']>;
   status?: InputMaybe<ApplicationStatus>;
@@ -179,8 +186,10 @@ export type Mutation = {
   deleteApplication: Application;
   deleteCompany: Company;
   deleteContact: Contact;
-  linkContactToApplication: Application;
+  linkContactToApplication: ApplicationContact;
+  unlinkContactFromApplication: ApplicationContact;
   updateApplication: Application;
+  updateApplicationContact: ApplicationContact;
   updateCompany: Company;
   updateContact: Contact;
 };
@@ -223,9 +232,20 @@ export type MutationLinkContactToApplicationArgs = {
 };
 
 
+export type MutationUnlinkContactFromApplicationArgs = {
+  applicationContactId: Scalars['ID']['input'];
+};
+
+
 export type MutationUpdateApplicationArgs = {
   id: Scalars['ID']['input'];
   input: UpdateApplicationInput;
+};
+
+
+export type MutationUpdateApplicationContactArgs = {
+  id: Scalars['ID']['input'];
+  role?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -318,7 +338,6 @@ export type UpdateApplicationInput = {
   preference?: InputMaybe<Preference>;
   priority?: InputMaybe<Priority>;
   remoteType?: InputMaybe<RemoteType>;
-  requirements?: InputMaybe<Scalars['String']['input']>;
   salaryMax?: InputMaybe<Scalars['Int']['input']>;
   salaryMin?: InputMaybe<Scalars['Int']['input']>;
   status?: InputMaybe<ApplicationStatus>;
@@ -332,7 +351,6 @@ export type UpdateCompanyInput = {
 };
 
 export type UpdateContactInput = {
-  companyId?: InputMaybe<Scalars['ID']['input']>;
   contactStatus?: InputMaybe<ContactStatus>;
   email?: InputMaybe<Scalars['String']['input']>;
   linkedinProfile?: InputMaybe<Scalars['String']['input']>;
@@ -419,6 +437,7 @@ export type DirectiveResolverFn<TResult = Record<PropertyKey, never>, TParent = 
 /** Mapping between all available schema types and the resolvers types */
 export type ResolversTypes = ResolversObject<{
   Application: ResolverTypeWrapper<PrismaApplication>;
+  ApplicationContact: ResolverTypeWrapper<Partial<Omit<ApplicationContact, 'application' | 'contact'> & { application: ResolversTypes['Application'], contact: ResolversTypes['Contact'] }>>;
   ApplicationFilterInput: ResolverTypeWrapper<Partial<ApplicationFilterInput>>;
   ApplicationStatus: ResolverTypeWrapper<Partial<ApplicationStatus>>;
   Boolean: ResolverTypeWrapper<Partial<Scalars['Boolean']['output']>>;
@@ -449,6 +468,7 @@ export type ResolversTypes = ResolversObject<{
 /** Mapping between all available schema types and the resolvers parents */
 export type ResolversParentTypes = ResolversObject<{
   Application: PrismaApplication;
+  ApplicationContact: Partial<Omit<ApplicationContact, 'application' | 'contact'> & { application: ResolversParentTypes['Application'], contact: ResolversParentTypes['Contact'] }>;
   ApplicationFilterInput: Partial<ApplicationFilterInput>;
   Boolean: Partial<Scalars['Boolean']['output']>;
   Company: PrismaCompany;
@@ -473,7 +493,7 @@ export type ApplicationResolvers<ContextType = Context, ParentType extends Resol
   comments?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   company?: Resolver<ResolversTypes['Company'], ParentType, ContextType>;
   companyJobUrl?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  contacts?: Resolver<Array<ResolversTypes['Contact']>, ParentType, ContextType>;
+  contactLinks?: Resolver<Array<ResolversTypes['ApplicationContact']>, ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   jobTitle?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -485,11 +505,18 @@ export type ApplicationResolvers<ContextType = Context, ParentType extends Resol
   preference?: Resolver<ResolversTypes['Preference'], ParentType, ContextType>;
   priority?: Resolver<ResolversTypes['Priority'], ParentType, ContextType>;
   remoteType?: Resolver<Maybe<ResolversTypes['RemoteType']>, ParentType, ContextType>;
-  requirements?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   salaryMax?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   salaryMin?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   status?: Resolver<ResolversTypes['ApplicationStatus'], ParentType, ContextType>;
   updatedAt?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+}>;
+
+export type ApplicationContactResolvers<ContextType = Context, ParentType extends ResolversParentTypes['ApplicationContact'] = ResolversParentTypes['ApplicationContact']> = ResolversObject<{
+  application?: Resolver<ResolversTypes['Application'], ParentType, ContextType>;
+  contact?: Resolver<ResolversTypes['Contact'], ParentType, ContextType>;
+  createdAt?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  role?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
 }>;
 
 export type CompanyResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Company'] = ResolversParentTypes['Company']> = ResolversObject<{
@@ -505,7 +532,7 @@ export type CompanyResolvers<ContextType = Context, ParentType extends Resolvers
 }>;
 
 export type ContactResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Contact'] = ResolversParentTypes['Contact']> = ResolversObject<{
-  applications?: Resolver<Array<ResolversTypes['Application']>, ParentType, ContextType>;
+  applicationLinks?: Resolver<Array<ResolversTypes['ApplicationContact']>, ParentType, ContextType>;
   company?: Resolver<ResolversTypes['Company'], ParentType, ContextType>;
   contactStatus?: Resolver<ResolversTypes['ContactStatus'], ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -528,8 +555,10 @@ export type MutationResolvers<ContextType = Context, ParentType extends Resolver
   deleteApplication?: Resolver<ResolversTypes['Application'], ParentType, ContextType, RequireFields<MutationDeleteApplicationArgs, 'id'>>;
   deleteCompany?: Resolver<ResolversTypes['Company'], ParentType, ContextType, RequireFields<MutationDeleteCompanyArgs, 'id'>>;
   deleteContact?: Resolver<ResolversTypes['Contact'], ParentType, ContextType, RequireFields<MutationDeleteContactArgs, 'id'>>;
-  linkContactToApplication?: Resolver<ResolversTypes['Application'], ParentType, ContextType, RequireFields<MutationLinkContactToApplicationArgs, 'applicationId' | 'contactId'>>;
+  linkContactToApplication?: Resolver<ResolversTypes['ApplicationContact'], ParentType, ContextType, RequireFields<MutationLinkContactToApplicationArgs, 'applicationId' | 'contactId'>>;
+  unlinkContactFromApplication?: Resolver<ResolversTypes['ApplicationContact'], ParentType, ContextType, RequireFields<MutationUnlinkContactFromApplicationArgs, 'applicationContactId'>>;
   updateApplication?: Resolver<ResolversTypes['Application'], ParentType, ContextType, RequireFields<MutationUpdateApplicationArgs, 'id' | 'input'>>;
+  updateApplicationContact?: Resolver<ResolversTypes['ApplicationContact'], ParentType, ContextType, RequireFields<MutationUpdateApplicationContactArgs, 'id'>>;
   updateCompany?: Resolver<ResolversTypes['Company'], ParentType, ContextType, RequireFields<MutationUpdateCompanyArgs, 'id' | 'input'>>;
   updateContact?: Resolver<ResolversTypes['Contact'], ParentType, ContextType, RequireFields<MutationUpdateContactArgs, 'id' | 'input'>>;
 }>;
@@ -545,6 +574,7 @@ export type QueryResolvers<ContextType = Context, ParentType extends ResolversPa
 
 export type Resolvers<ContextType = Context> = ResolversObject<{
   Application?: ApplicationResolvers<ContextType>;
+  ApplicationContact?: ApplicationContactResolvers<ContextType>;
   Company?: CompanyResolvers<ContextType>;
   Contact?: ContactResolvers<ContextType>;
   Mutation?: MutationResolvers<ContextType>;

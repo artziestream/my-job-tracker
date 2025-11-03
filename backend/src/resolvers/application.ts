@@ -1,126 +1,170 @@
-import { Resolvers } from '../generated/graphql'
-import { Prisma } from '@prisma/client'
+import { Resolvers, ResolversTypes } from '../generated/graphql'
+import { Context } from '../context'
 
 export const applicationResolvers: Resolvers = {
     Query: {
-        // Get all applications with optional filtering
-        applications: async (_parent, args, context) => {
-            const where: Prisma.ApplicationWhereInput = {}
+        applications: async (_parent, args, context: Context) => {
+            const { filter } = args
+            const where: any = {}
 
-            if (args.filter) {
-                // Text searches
-                if (args.filter.jobTitle) {
-                    where.jobTitle = {
-                        contains: args.filter.jobTitle,
-                        mode: 'insensitive',
-                    }
-                }
-
-                if (args.filter.location) {
-                    where.location = {
-                        contains: args.filter.location,
-                        mode: 'insensitive',
-                    }
-                }
-
-                // Exact matches
-                if (args.filter.companyId) {
-                    where.companyId = args.filter.companyId
-                }
-
-                if (args.filter.priority) {
-                    where.priority = args.filter.priority
-                }
-
-                if (args.filter.status) {
-                    where.status = args.filter.status
-                }
-
-                if (args.filter.remoteType) {
-                    where.remoteType = args.filter.remoteType
-                }
-
-                if (args.filter.preference) {
-                    where.preference = args.filter.preference
-                }
-
-                // Salary range filters
-                if (args.filter.minSalary !== undefined) {
-                    where.salaryMax = { gte: args.filter.minSalary }
-                }
-
-                if (args.filter.maxSalary !== undefined) {
-                    where.salaryMin = { lte: args.filter.maxSalary }
-                }
+            if (filter?.jobTitle) {
+                where.jobTitle = { contains: filter.jobTitle, mode: 'insensitive' }
             }
+            if (filter?.companyId) where.companyId = filter.companyId
+            if (filter?.priority) where.priority = filter.priority
+            if (filter?.status) where.status = filter.status
+            if (filter?.location) {
+                where.location = { contains: filter.location, mode: 'insensitive' }
+            }
+            if (filter?.remoteType) where.remoteType = filter.remoteType
+            if (filter?.preference) where.preference = filter.preference
 
             return context.prisma.application.findMany({
                 where,
+                include: {
+                    company: true,
+                    contacts: {
+                        include: {
+                            contact: { include: { company: true } },
+                        },
+                    },
+                },
                 orderBy: { createdAt: 'desc' },
             })
         },
 
-        application: async (_parent, args, context) => {
+        application: async (_parent, args, context: Context) => {
             return context.prisma.application.findUnique({
                 where: { id: args.id },
+                include: {
+                    company: true,
+                    contacts: {
+                        include: {
+                            contact: { include: { company: true } },
+                        },
+                    },
+                },
             })
         },
     },
 
     Mutation: {
-        createApplication: async (_parent, args, context) => {
+        createApplication: async (_parent, args, context: Context) => {
+            const { input } = args
             return context.prisma.application.create({
                 data: {
-                    ...args.input,
-                    priority: args.input.priority || 'MEDIUM',
-                    status: args.input.status || 'NOT_STARTED',
-                    preference: args.input.preference || 'NEUTRAL',
+                    ...input,
+                    postedDate: input.postedDate ? new Date(input.postedDate) : null,
+                    postingEndDate: input.postingEndDate
+                        ? new Date(input.postingEndDate)
+                        : null,
+                    appliedDate: input.appliedDate ? new Date(input.appliedDate) : null,
+                    offerDeadline: input.offerDeadline
+                        ? new Date(input.offerDeadline)
+                        : null,
+                },
+                include: {
+                    company: true,
                 },
             })
         },
 
-        updateApplication: async (_parent, args, context) => {
+        updateApplication: async (_parent, args, context: Context) => {
+            const { id, input } = args
+            const data: Record<string, any> = { ...input }
+
+            if ('postedDate' in input) {
+                data.postedDate = input.postedDate ? new Date(input.postedDate) : null
+            }
+            if ('postingEndDate' in input) {
+                data.postingEndDate = input.postingEndDate
+                    ? new Date(input.postingEndDate)
+                    : null
+            }
+            if ('appliedDate' in input) {
+                data.appliedDate = input.appliedDate ? new Date(input.appliedDate) : null
+            }
+            if ('offerDeadline' in input) {
+                data.offerDeadline = input.offerDeadline
+                    ? new Date(input.offerDeadline)
+                    : null
+            }
+
             return context.prisma.application.update({
-                where: { id: args.id },
-                data: args.input,
+                where: { id },
+                data,
+                include: {
+                    company: true,
+                },
             })
         },
 
-        deleteApplication: async (_parent, args, context) => {
+        deleteApplication: async (_parent, args, context: Context) => {
             return context.prisma.application.delete({
                 where: { id: args.id },
             })
         },
 
-        linkContactToApplication: async (_parent, args, context) => {
-            await context.prisma.applicationContact.create({
+        linkContactToApplication: async (_parent, args, context: Context) => {
+            const { applicationId, contactId, role } = args
+
+            const result = await context.prisma.applicationContact.create({
                 data: {
-                    applicationId: args.applicationId,
-                    contactId: args.contactId,
-                    role: args.role,
+                    applicationId,
+                    contactId,
+                    role,
+                },
+                include: {
+                    contact: { include: { company: true } },
+                    application: { include: { company: true } },
                 },
             })
 
-            return context.prisma.application.findUniqueOrThrow({
-                where: { id: args.applicationId },
+            return result as unknown as ResolversTypes['ApplicationContact']
+        },
+
+        unlinkContactFromApplication: async (_parent, args, context: Context) => {
+            const { applicationContactId } = args
+
+            const result = await context.prisma.applicationContact.delete({
+                where: { id: applicationContactId },
+                include: {
+                    contact: { include: { company: true } },
+                    application: { include: { company: true } },
+                },
             })
+
+            return result as unknown as ResolversTypes['ApplicationContact']
+        },
+
+        updateApplicationContact: async (
+            _: any,
+            { id, role }: { id: string; role?: string },
+            context: Context
+        ) => {
+            const updated = context.prisma.applicationContact.update({
+                where: { id },
+                data: { role },
+                include: {
+                    contact: true,
+                    application: true,
+                },
+            })
+            return updated as unknown as ResolversTypes['ApplicationContact']
         },
     },
 
     Application: {
-        company: async (parent, _args, context) => {
-            return context.prisma.company.findUniqueOrThrow({
-                where: { id: parent.companyId },
-            })
-        },
+        contactLinks: async (parent, _args, context: Context) => {
+            const result = await context.prisma.applicationContact.findMany({
+                where: { applicationId: parent.id },
+                include: {
+                    contact: { include: { company: true } },
+                },
+                orderBy: { createdAt: 'desc' },
+            });
 
-        contacts: async (parent, _args, context) => {
-            const applicationContacts =
-                await context.prisma.applicationContact.findMany({
-                    where: { applicationId: parent.id },
-                    include: { contact: true },
-                })
-            return applicationContacts.map((ac) => ac.contact)
+            return result as unknown as ResolversTypes['ApplicationContact'][];
         },
     },
 }

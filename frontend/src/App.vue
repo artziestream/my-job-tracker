@@ -1,20 +1,36 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router';
+import { ref } from 'vue'
+import { RouterLink, RouterView } from 'vue-router'
+import Toast from 'primevue/toast'
+import Button from 'primevue/button'
+import ReferralSettingsDrawer from './components/ReferralSettingsDrawer.vue'
+
+const showSettings = ref(false)
 </script>
 
 <template>
+  <Toast />
   <div id="app">
     <nav class="navbar">
-      <h1>Job Application Tracker</h1>
-      <div class="nav-links">
+      <div class="nav-left">
+        <h1>Job Application Tracker</h1>
+      </div>
+
+      <div class="nav-center">
         <RouterLink to="/companies">Companies</RouterLink>
         <RouterLink to="/applications">Applications</RouterLink>
+      </div>
+
+      <div class="nav-right">
+        <Button icon="pi pi-cog" label="Referral Settings" text class="settings-btn" @click="showSettings = true" />
       </div>
     </nav>
 
     <main>
       <RouterView />
     </main>
+
+    <ReferralSettingsDrawer v-model:visible="showSettings" />
   </div>
 </template>
 
@@ -29,17 +45,21 @@ import { RouterLink, RouterView } from 'vue-router';
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
-.navbar h1 {
+.nav-left h1 {
   font-size: 1.5rem;
   font-weight: 700;
+  margin: 0;
 }
 
-.nav-links {
+.nav-center {
   display: flex;
   gap: 2rem;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
-.nav-links a {
+.nav-center a {
   color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
   font-weight: 500;
@@ -48,11 +68,24 @@ import { RouterLink, RouterView } from 'vue-router';
   transition: background 0.2s;
 }
 
-.nav-links a:hover {
+.nav-center a:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
-.nav-links a.router-link-active {
+.nav-center a.router-link-active {
   background: rgba(255, 255, 255, 0.15);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+}
+
+.settings-btn {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.settings-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
 }
 </style>

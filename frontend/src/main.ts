@@ -5,6 +5,7 @@ import router from './router';
 
 // PrimeVue Core
 import PrimeVue from 'primevue/config';
+import ToastService from 'primevue/toastservice';
 
 // PrimeVue Dark Theme
 import { definePreset } from '@primevue/themes';
@@ -50,6 +51,7 @@ app.use(PrimeVue, {
         },
     },
 });
+app.use(ToastService);
 
 app.provide(DefaultApolloClient, apolloClient);
 

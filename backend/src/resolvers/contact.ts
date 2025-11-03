@@ -1,4 +1,4 @@
-import { Resolvers } from '../generated/graphql'
+import { Resolvers, ResolversTypes } from '../generated/graphql'
 import { Prisma } from '@prisma/client'
 
 export const contactResolvers: Resolvers = {
@@ -88,13 +88,15 @@ export const contactResolvers: Resolvers = {
             })
         },
 
-        applications: async (parent, _args, context) => {
-            const applicationContacts =
-                await context.prisma.applicationContact.findMany({
-                    where: { contactId: parent.id },
-                    include: { application: true },
-                })
-            return applicationContacts.map((ac) => ac.application)
+        applicationLinks: async (parent, _args, context) => {
+            const links = await context.prisma.applicationContact.findMany({
+                where: { contactId: parent.id },
+                include: {
+                    application: { include: { company: true } },
+                },
+                orderBy: { createdAt: 'desc' },
+            });
+            return links as unknown as ResolversTypes['ApplicationContact'][];
         },
     },
 }

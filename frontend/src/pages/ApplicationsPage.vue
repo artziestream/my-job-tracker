@@ -1,350 +1,290 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { gql } from '@apollo/client/core';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
-import InputText from 'primevue/inputtext';
-import InputNumber from 'primevue/inputnumber';
-import Select from 'primevue/select';
-import Textarea from 'primevue/textarea';
-import DatePicker from 'primevue/datepicker';
+import MultiSelect from 'primevue/multiselect';
+import Tag from 'primevue/tag';
 import PageLayout from '../components/PageLayout.vue';
 import CrudTable from '../components/CrudTable.vue';
+import FilterBar from '../components/FilterBar.vue';
+import ContactsList from '../components/ContactsList.vue';
+import ApplicationForm from '../components/forms/ApplicationForm.vue';
+import { useQueryParams } from '../composables/useQueryParams';
+import { usePriorityCalculator } from '../composables/usePriorityCalculator';
+import {
+  statusOptions,
+  priorityOptions,
+  remoteTypeOptions,
+  preferenceOptions,
+  getSeverity,
+  getLabel,
+} from '../constants/options';
+import {
+  APPLICATIONS_QUERY,
+  COMPANIES_LIST_QUERY,
+  CREATE_APPLICATION,
+  UPDATE_APPLICATION,
+  DELETE_APPLICATION,
+} from '../graphql/applications';
 
-const router = useRouter();
-const route = useRoute();
-
-const APPLICATIONS_QUERY = gql`
-  query GetApplications {
-    applications {
-      id
-      jobTitle
-      linkedinUrl
-      companyJobUrl
-      priority
-      salaryMin
-      salaryMax
-      status
-      location
-      remoteType
-      preference
-      postedDate
-      postingEndDate
-      appliedDate
-      comments
-      company {
-        id
-        name
-      }
-      contacts {
-        id
-        name
-      }
-    }
-  }
-`;
-
-const COMPANIES_QUERY = gql`
-  query GetCompanies {
-    companies {
-      id
-      name
-    }
-  }
-`;
-
-const CREATE_APPLICATION = gql`
-  mutation CreateApplication($input: CreateApplicationInput!) {
-    createApplication(input: $input) {
-      id
-      jobTitle
-      status
-    }
-  }
-`;
-
-const UPDATE_APPLICATION = gql`
-  mutation UpdateApplication($id: ID!, $input: UpdateApplicationInput!) {
-    updateApplication(id: $id, input: $input) {
-      id
-      jobTitle
-      status
-    }
-  }
-`;
-
-const DELETE_APPLICATION = gql`
-  mutation DeleteApplication($id: ID!) {
-    deleteApplication(id: $id) {
-      id
-    }
-  }
-`;
-
+// =====================================================================
+// GRAPHQL QUERIES
+// =====================================================================
 const { result, loading, error, refetch } = useQuery(APPLICATIONS_QUERY);
-const { result: companiesResult } = useQuery(COMPANIES_QUERY);
+const { result: companiesResult } = useQuery(COMPANIES_LIST_QUERY);
 
 const applications = ref<any[]>([]);
 const companies = ref<any[]>([]);
 
-watch(result, (newResult) => {
-  if (newResult?.applications) {
-    applications.value = newResult.applications;
-  }
-}, { immediate: true });
+watch(
+  result,
+  (newResult) => {
+    if (newResult?.applications) {
+      applications.value = newResult.applications;
+    }
+  },
+  { immediate: true }
+);
 
-watch(companiesResult, (newResult) => {
-  if (newResult?.companies) {
-    companies.value = newResult.companies;
-  }
-}, { immediate: true });
+watch(
+  companiesResult,
+  (newResult) => {
+    if (newResult?.companies) {
+      companies.value = newResult.companies;
+    }
+  },
+  { immediate: true }
+);
 
+// =====================================================================
+// MUTATIONS
+// =====================================================================
 const { mutate: createApplication } = useMutation(CREATE_APPLICATION);
 const { mutate: updateApplication } = useMutation(UPDATE_APPLICATION);
 const { mutate: deleteApplication } = useMutation(DELETE_APPLICATION);
 
-const showDialog = ref(false);
-const editingApplication = ref<string | null>(null);
-
-const formData = ref({
+// =====================================================================
+// FILTERS
+// =====================================================================
+const { filters } = useQueryParams({
   jobTitle: '',
-  companyId: '',
-  linkedinUrl: '',
-  companyJobUrl: '',
-  salaryMin: null as number | null,
-  salaryMax: null as number | null,
-  status: 'NOT_STARTED' as string,
+  companyName: '',
   location: '',
-  remoteType: null as string | null,
-  preference: 'NEUTRAL' as string,
-  postedDate: '',
-  postingEndDate: '',
-  appliedDate: '',
-  comments: '',
+  status: null,
+  priority: null,
+  remoteType: null,
+  preference: null,
 });
 
-const filters = ref({
-  jobTitle: (route.query.jobTitle as string) || '',
-  companyName: (route.query.companyName as string) || '',
-  status: (route.query.status as string) || null,
-  priority: (route.query.priority as string) || null,
-  remoteType: (route.query.remoteType as string) || null,
-});
+const { calculatePriority } = usePriorityCalculator();
 
-watch(filters, (newFilters) => {
-  const query: any = {};
-  if (newFilters.jobTitle) query.jobTitle = newFilters.jobTitle;
-  if (newFilters.companyName) query.companyName = newFilters.companyName;
-  if (newFilters.status) query.status = newFilters.status;
-  if (newFilters.priority) query.priority = newFilters.priority;
-  if (newFilters.remoteType) query.remoteType = newFilters.remoteType;
+// =====================================================================
+// DIALOG & UI STATE
+// =====================================================================
+const showDialog = ref(false);
+const editingApplication = ref<any>(null);
 
-  router.replace({ query });
-}, { deep: true });
+const selectedApplicationForContacts = ref<any>(null);
+const showContactsListDialog = ref(false);
 
-watch(() => route.query, (newQuery) => {
-  filters.value.jobTitle = (newQuery.jobTitle as string) || '';
-  filters.value.companyName = (newQuery.companyName as string) || '';
-  filters.value.status = (newQuery.status as string) || null;
-  filters.value.priority = (newQuery.priority as string) || null;
-  filters.value.remoteType = (newQuery.remoteType as string) || null;
-});
+const openContactsList = (app: any) => {
+  selectedApplicationForContacts.value = app;
+  showContactsListDialog.value = true;
+};
 
+// =====================================================================
+// UTILITIES
+// =====================================================================
+const formatDate = (input?: string | number) => {
+  if (!input) return '-';
+
+  try {
+    let d: Date;
+
+    // handle epoch in string or number form
+    if (typeof input === 'number' || /^\d+$/.test(String(input))) {
+      d = new Date(Number(input));
+    } else {
+      d = new Date(input);
+    }
+
+    if (isNaN(d.getTime())) return String(input); // fallback if invalid
+
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d);
+  } catch {
+    return String(input);
+  }
+};
+
+const isExpired = (postingEndDate?: string, status?: string) => {
+  if (!postingEndDate || status !== 'NOT_STARTED') return false;
+  try {
+    const endDate = new Date(postingEndDate);
+    const now = new Date();
+    return endDate < now;
+  } catch {
+    return false;
+  }
+};
+
+// =====================================================================
+// FILTERED DATA
+// =====================================================================
 const filteredApplications = computed(() => {
   let result = applications.value;
 
   if (filters.value.jobTitle) {
     const search = filters.value.jobTitle.toLowerCase();
-    result = result.filter(a => a.jobTitle.toLowerCase().includes(search));
+    result = result.filter((a) => a.jobTitle.toLowerCase().includes(search));
   }
 
   if (filters.value.companyName) {
     const search = filters.value.companyName.toLowerCase();
-    result = result.filter(a => a.company.name.toLowerCase().includes(search));
+    result = result.filter((a) => a.company.name.toLowerCase().includes(search));
+  }
+
+  if (filters.value.location) {
+    const search = filters.value.location.toLowerCase();
+    result = result.filter(
+      (a) => a.location && a.location.toLowerCase().includes(search)
+    );
   }
 
   if (filters.value.status) {
-    result = result.filter(a => a.status === filters.value.status);
+    result = result.filter((a) => a.status === filters.value.status);
   }
 
   if (filters.value.priority) {
-    result = result.filter(a => a.priority === filters.value.priority);
+    result = result.filter((a) => a.priority === filters.value.priority);
   }
 
   if (filters.value.remoteType) {
-    result = result.filter(a => a.remoteType === filters.value.remoteType);
+    result = result.filter((a) => a.remoteType === filters.value.remoteType);
+  }
+
+  if (filters.value.preference) {
+    result = result.filter((a) => a.preference === filters.value.preference);
   }
 
   return result;
 });
 
-const tableColumns = [
+// =====================================================================
+// COLUMN CONFIGURATION
+// =====================================================================
+const availableColumns = [
   { field: 'jobTitle', header: 'Job Title', sortable: true },
   { field: 'company.name', header: 'Company', sortable: true },
   { field: 'status', header: 'Status', sortable: true },
   { field: 'priority', header: 'Priority', sortable: true },
   { field: 'location', header: 'Location', sortable: false },
-  { field: 'remoteType', header: 'Remote', sortable: false },
+  { field: 'remoteType', header: 'Remote Type', sortable: false },
+  { field: 'contactLinks', header: 'Contacts', sortable: false },
+  { field: 'preference', header: 'Preference', sortable: false },
+  { field: 'salaryMin', header: 'Min Salary', sortable: true },
+  { field: 'salaryMax', header: 'Max Salary', sortable: true },
+  { field: 'postedDate', header: 'Posted Date', sortable: true },
+  { field: 'postingEndDate', header: 'Posting End Date', sortable: true },
+  { field: 'appliedDate', header: 'Applied Date', sortable: true },
+  { field: 'offerDeadline', header: 'Offer Deadline', sortable: true },
+  { field: 'comments', header: 'Comments', sortable: false },
 ];
 
-const statusOptions = [
-  { label: 'Not Started', value: 'NOT_STARTED' },
-  { label: 'Applied (No Referral)', value: 'APPLIED_NO_REFERRAL' },
-  { label: 'Applied (With Referral)', value: 'APPLIED_WITH_REFERRAL' },
-  { label: 'Phone Screen', value: 'PHONE_SCREEN' },
-  { label: 'Early Stages', value: 'EARLY_STAGES' },
-  { label: 'Final Round', value: 'FINAL_ROUND' },
-  { label: 'Offer Received', value: 'OFFER_RECEIVED' },
-  { label: 'Offer Accepted', value: 'OFFER_ACCEPTED' },
-  { label: 'Offer Declined', value: 'OFFER_DECLINED' },
-  { label: 'Rejected', value: 'REJECTED' },
-  { label: 'Withdrawn', value: 'WITHDRAWN' },
-];
-
-const priorityOptions = [
-  { label: 'Low', value: 'LOW' },
-  { label: 'Medium', value: 'MEDIUM' },
-  { label: 'High', value: 'HIGH' },
-];
-
-const remoteTypeOptions = [
-  { label: 'Onsite', value: 'ONSITE' },
-  { label: 'Hybrid', value: 'HYBRID' },
-  { label: 'Remote', value: 'REMOTE' },
-  { label: 'Flexible', value: 'FLEXIBLE' },
-];
-
-const preferenceOptions = [
-  { label: 'Strongly Prefer', value: 'STRONGLY_PREFER' },
-  { label: 'Prefer', value: 'PREFER' },
-  { label: 'Neutral', value: 'NEUTRAL' },
-  { label: 'Avoid', value: 'AVOID' },
-  { label: 'Dealbreaker', value: 'DEALBREAKER' },
-];
-
-const companyOptions = computed(() =>
-  companies.value.map(c => ({ label: c.name, value: c.id }))
+// Default columns (subset)
+const selectedColumns = ref(
+  availableColumns.filter((c) =>
+    ['jobTitle', 'company.name', 'status', 'priority', 'location', 'contactLinks'].includes(c.field)
+  )
 );
 
-const calculatePriority = (data: {
-  postedDate?: string;
-  postingEndDate?: string;
-  preference: string;
-  companyId: string;
-}): string => {
-  let score = 0;
+// =====================================================================
+// FILTERBAR CONFIG
+// =====================================================================
+const filterFields = [
+  {
+    key: 'jobTitle',
+    label: 'Search by Job Title',
+    type: 'text' as const,
+    placeholder: 'Type to search...',
+  },
+  {
+    key: 'companyName',
+    label: 'Search by Company',
+    type: 'text' as const,
+    placeholder: 'Company name...',
+  },
+  {
+    key: 'location',
+    label: 'Search by Location',
+    type: 'text' as const,
+    placeholder: 'City, state, or country...',
+  },
+  {
+    key: 'status',
+    label: 'Filter by Status',
+    type: 'select' as const,
+    placeholder: 'All Statuses',
+    options: statusOptions,
+  },
+  {
+    key: 'priority',
+    label: 'Filter by Priority',
+    type: 'select' as const,
+    placeholder: 'All Priorities',
+    options: priorityOptions,
+  },
+  {
+    key: 'remoteType',
+    label: 'Filter by Remote Type',
+    type: 'select' as const,
+    placeholder: 'All Types',
+    options: remoteTypeOptions,
+  },
+  {
+    key: 'preference',
+    label: 'Filter by Preference',
+    type: 'select' as const,
+    placeholder: 'All Preferences',
+    options: preferenceOptions,
+  },
+];
 
-  if (data.preference === 'STRONGLY_PREFER') score += 3;
-  else if (data.preference === 'PREFER') score += 2;
-  else if (data.preference === 'NEUTRAL') score += 1;
-  else if (data.preference === 'AVOID') score -= 1;
-  else if (data.preference === 'DEALBREAKER') score -= 3;
-
-  const company = companies.value.find(c => c.id === data.companyId);
-  if (company?.contacts && company.contacts.length > 0) {
-    score += 2;
-  }
-
-  if (data.postingEndDate) {
-    const endDate = new Date(data.postingEndDate);
-    const now = new Date();
-    const daysUntilEnd = Math.floor((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysUntilEnd <= 3) score += 2;
-    else if (daysUntilEnd <= 7) score += 1;
-  }
-
-  if (data.postedDate) {
-    const posted = new Date(data.postedDate);
-    const now = new Date();
-    const daysSincePosted = Math.floor((now.getTime() - posted.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysSincePosted <= 2) score += 1;
-  }
-
-  if (score >= 5) return 'HIGH';
-  if (score >= 2) return 'MEDIUM';
-  return 'LOW';
-};
-
+// =====================================================================
+// ACTIONS
+// =====================================================================
 const openCreateDialog = () => {
   editingApplication.value = null;
-  formData.value = {
-    jobTitle: '',
-    companyId: '',
-    linkedinUrl: '',
-    companyJobUrl: '',
-    salaryMin: null,
-    salaryMax: null,
-    status: 'NOT_STARTED',
-    location: '',
-    remoteType: null,
-    preference: 'NEUTRAL',
-    postedDate: '',
-    postingEndDate: '',
-    appliedDate: '',
-    comments: '',
-  };
   showDialog.value = true;
 };
 
 const openEditDialog = (app: any) => {
-  editingApplication.value = app.id;
-  formData.value = {
-    jobTitle: app.jobTitle,
-    companyId: app.company.id,
-    linkedinUrl: app.linkedinUrl || '',
-    companyJobUrl: app.companyJobUrl || '',
-    salaryMin: app.salaryMin,
-    salaryMax: app.salaryMax,
-    status: app.status,
-    location: app.location || '',
-    remoteType: app.remoteType,
-    preference: app.preference,
-    postedDate: app.postedDate || '',
-    postingEndDate: app.postingEndDate || '',
-    appliedDate: app.appliedDate || '',
-    comments: app.comments || '',
-  };
+  editingApplication.value = app;
   showDialog.value = true;
 };
 
-const handleSave = async () => {
-  if (!formData.value.jobTitle.trim() || !formData.value.companyId) {
-    alert('Job title and company are required');
-    return;
-  }
-
+const handleSaveApplication = async (data: any) => {
   try {
+    const company = companies.value.find((c) => c.id === data.companyId);
+    const hasContacts = company?.contactLinks && company.contactLinks.length > 0;
+
     const priority = calculatePriority({
-      postedDate: formData.value.postedDate,
-      postingEndDate: formData.value.postingEndDate,
-      preference: formData.value.preference,
-      companyId: formData.value.companyId,
+      postedDate: data.postedDate,
+      postingEndDate: data.postingEndDate,
+      preference: data.preference,
+      hasContacts,
     });
 
-    const input = {
-      jobTitle: formData.value.jobTitle,
-      companyId: formData.value.companyId,
-      linkedinUrl: formData.value.linkedinUrl || undefined,
-      companyJobUrl: formData.value.companyJobUrl || undefined,
-      priority,
-      salaryMin: formData.value.salaryMin,
-      salaryMax: formData.value.salaryMax,
-      status: formData.value.status,
-      location: formData.value.location || undefined,
-      remoteType: formData.value.remoteType,
-      preference: formData.value.preference,
-      postedDate: formData.value.postedDate || undefined,
-      postingEndDate: formData.value.postingEndDate || undefined,
-      appliedDate: formData.value.appliedDate || undefined,
-      comments: formData.value.comments || undefined,
-    };
+    const input = { ...data, priority };
 
     if (editingApplication.value) {
-      await updateApplication({ id: editingApplication.value, input });
+      await updateApplication({ id: editingApplication.value.id, input });
     } else {
       await createApplication({ input });
     }
@@ -353,7 +293,7 @@ const handleSave = async () => {
     refetch();
   } catch (err) {
     console.error('Error:', err);
-    alert('Failed to save application');
+    throw err;
   }
 };
 
@@ -367,6 +307,15 @@ const handleDelete = async (id: string) => {
     }
   }
 };
+
+const handleContactsUpdated = async () => {
+  await refetch()
+  const appId = selectedApplicationForContacts.value?.id
+  if (appId && result.value?.applications) {
+    const updated = result.value.applications.find((a: { id: any; }) => a.id === appId)
+    if (updated) selectedApplicationForContacts.value = { ...updated }
+  }
+}
 </script>
 
 <template>
@@ -375,170 +324,138 @@ const handleDelete = async (id: string) => {
       <Button label="Add Application" icon="pi pi-plus" @click="openCreateDialog" />
     </template>
 
-    <div class="filters">
-      <div class="filter-field">
-        <label>Search by Job Title</label>
-        <InputText v-model="filters.jobTitle" placeholder="Type to search..." fluid />
-      </div>
+    <FilterBar :filters="filters" :fields="filterFields" @update:filters="filters = $event" />
 
-      <div class="filter-field">
-        <label>Search by Company</label>
-        <InputText v-model="filters.companyName" placeholder="Company name..." fluid />
-      </div>
-
-      <div class="filter-field">
-        <label>Filter by Status</label>
-        <Select v-model="filters.status" :options="statusOptions" optionLabel="label" optionValue="value"
-          placeholder="All Statuses" showClear fluid />
-      </div>
-
-      <div class="filter-field">
-        <label>Filter by Priority</label>
-        <Select v-model="filters.priority" :options="priorityOptions" optionLabel="label" optionValue="value"
-          placeholder="All Priorities" showClear fluid />
-      </div>
-
-      <div class="filter-field">
-        <label>Filter by Remote Type</label>
-        <Select v-model="filters.remoteType" :options="remoteTypeOptions" optionLabel="label" optionValue="value"
-          placeholder="All Types" showClear fluid />
-      </div>
+    <div class="column-selector">
+      <span class="label">Visible Columns:</span>
+      <MultiSelect v-model="selectedColumns" :options="availableColumns" option-label="header" display="chip"
+        placeholder="Choose columns" class="column-multiselect" />
+      <Button label="Select All" icon="pi pi-check-square" text size="small"
+        @click="selectedColumns = [...availableColumns]" />
     </div>
 
-    <CrudTable :data="filteredApplications" :loading="loading" :error="error" :columns="tableColumns"
+    <CrudTable :data="filteredApplications" :loading="loading" :error="error" :columns="selectedColumns"
       @delete="handleDelete" @edit="openEditDialog">
+      <template #cell-jobTitle="{ data }">
+        <a v-if="data.linkedinUrl || data.companyJobUrl" :href="data.linkedinUrl || data.companyJobUrl" target="_blank"
+          rel="noopener noreferrer" class="job-link">
+          {{ data.jobTitle }}
+          <i class="pi pi-external-link" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
+        </a>
+        <span v-else>{{ data.jobTitle }}</span>
+      </template>
+
       <template #cell-company.name="{ data }">
         <router-link :to="`/companies?name=${data.company.name}`" class="company-link">
           {{ data.company.name }}
         </router-link>
       </template>
+
+      <template #cell-status="{ data }">
+        <Tag v-if="data.status" :value="getLabel(statusOptions, data.status)"
+          :severity="getSeverity(statusOptions, data.status)" />
+        <span v-else>-</span>
+      </template>
+
+      <template #cell-priority="{ data }">
+        <Tag v-if="data.priority" :value="getLabel(priorityOptions, data.priority)"
+          :severity="getSeverity(priorityOptions, data.priority)" />
+        <span v-else>-</span>
+      </template>
+
+      <template #cell-remoteType="{ data }">
+        <Tag v-if="data.remoteType" :value="getLabel(remoteTypeOptions, data.remoteType)"
+          :severity="getSeverity(remoteTypeOptions, data.remoteType)" />
+        <span v-else>-</span>
+      </template>
+
+      <template #cell-preference="{ data }">
+        <Tag v-if="data.preference" :value="getLabel(preferenceOptions, data.preference)"
+          :severity="getSeverity(preferenceOptions, data.preference)" />
+        <span v-else>-</span>
+      </template>
+
+      <template #cell-contactLinks="{ data }">
+        <Button :label="`${data.contactLinks?.length || 0}`"
+          :severity="data.contactLinks?.length > 0 ? 'info' : 'secondary'" outlined size="small"
+          @click="openContactsList(data)" />
+      </template>
+
+      <template #cell-postedDate="{ data }">
+        {{ formatDate(data.postedDate) }}
+      </template>
+
+      <template #cell-postingEndDate="{ data }">
+        <span v-if="isExpired(data.postingEndDate, data.status)" class="expired-tag">
+          <Tag value="EXPIRED" severity="danger" />
+        </span>
+        <span v-else>{{ formatDate(data.postingEndDate) }}</span>
+      </template>
+
+      <template #cell-appliedDate="{ data }">
+        {{ formatDate(data.appliedDate) }}
+      </template>
+
+      <template #cell-offerDeadline="{ data }">
+        {{ formatDate(data.offerDeadline) }}
+      </template>
     </CrudTable>
 
     <Dialog v-model:visible="showDialog" modal :header="editingApplication ? 'Edit Application' : 'Create Application'"
-      :style="{ width: '40rem' }">
-      <div class="form">
-        <div class="field">
-          <label>Job Title *</label>
-          <InputText v-model="formData.jobTitle" fluid />
-        </div>
-
-        <div class="field">
-          <label>Company *</label>
-          <Select v-model="formData.companyId" :options="companyOptions" optionLabel="label" optionValue="value"
-            placeholder="Select company" fluid />
-        </div>
-
-        <div class="field">
-          <label>LinkedIn URL</label>
-          <InputText v-model="formData.linkedinUrl" fluid />
-        </div>
-
-        <div class="field">
-          <label>Company Job URL</label>
-          <InputText v-model="formData.companyJobUrl" fluid />
-        </div>
-
-        <div class="field">
-          <label>Status</label>
-          <Select v-model="formData.status" :options="statusOptions" optionLabel="label" optionValue="value" fluid />
-        </div>
-
-        <div class="field">
-          <label>Location</label>
-          <InputText v-model="formData.location" fluid />
-        </div>
-
-        <div class="field">
-          <label>Remote Type</label>
-          <Select v-model="formData.remoteType" :options="remoteTypeOptions" optionLabel="label" optionValue="value"
-            fluid />
-        </div>
-
-        <div class="field">
-          <label>Preference</label>
-          <Select v-model="formData.preference" :options="preferenceOptions" optionLabel="label" optionValue="value"
-            fluid />
-        </div>
-
-        <div class="field-row">
-          <div class="field">
-            <label>Posted Date</label>
-            <InputText v-model="formData.postedDate" type="date" fluid />
-          </div>
-          <div class="field">
-            <label>Posting End Date</label>
-            <InputText v-model="formData.postingEndDate" type="date" fluid />
-          </div>
-        </div>
-
-        <div class="field-row">
-          <div class="field">
-            <label>Min Salary</label>
-            <InputNumber v-model="formData.salaryMin" mode="currency" currency="USD" fluid />
-          </div>
-          <div class="field">
-            <label>Max Salary</label>
-            <InputNumber v-model="formData.salaryMax" mode="currency" currency="USD" fluid />
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Comments</label>
-          <Textarea v-model="formData.comments" rows="3" fluid />
-        </div>
-      </div>
-
-      <template #footer>
-        <Button label="Cancel" text @click="showDialog = false" />
-        <Button :label="editingApplication ? 'Update' : 'Create'" @click="handleSave" />
-      </template>
+      :style="{ width: '50rem' }">
+      <ApplicationForm :initial-data="editingApplication" :companies="companies" @save="handleSaveApplication"
+        @cancel="showDialog = false" />
     </Dialog>
+
+    <ContactsList :company="null" :application="selectedApplicationForContacts" :visible="showContactsListDialog"
+      @close="showContactsListDialog = false" @updated="handleContactsUpdated" />
   </PageLayout>
 </template>
 
 <style scoped>
-.filters {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
+.job-link {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
 }
 
-.filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  padding: 1rem 0;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.field-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+.job-link:hover {
+  text-decoration: underline;
 }
 
 .company-link {
-  color: var(--primary-color);
+  color: var(--accent-primary);
   text-decoration: none;
+  font-weight: 500;
 }
 
 .company-link:hover {
   text-decoration: underline;
+}
+
+.column-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  width: 100%;
+}
+
+.label {
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.column-multiselect {
+  flex: 1;
+  min-width: 20rem;
+}
+
+.expired-tag {
+  display: inline-flex;
+  align-items: center;
 }
 </style>
