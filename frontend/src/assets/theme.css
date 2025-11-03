@@ -1,0 +1,134 @@
+/* ============================================
+   DARK THEME VARIABLES
+   ============================================ */
+:root {
+  color-scheme: dark;
+
+  /* Base colors */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-hover: #475569;
+
+  /* Text colors */
+  --text-primary: #f1f5f9;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+
+  /* Border colors */
+  --border-primary: #334155;
+  --border-secondary: #475569;
+
+  /* Accent colors */
+  --accent-primary: #3b82f6;
+  --accent-hover: #2563eb;
+  --error: #ef4444;
+  --error-bg: rgba(239, 68, 68, 0.1);
+}
+
+/* ============================================
+   GLOBAL DARK THEME OVERRIDES FOR PRIMEVUE
+   ============================================ */
+
+/* Cards */
+.p-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+.p-card .p-card-title {
+  color: var(--text-primary);
+}
+
+/* DataTable */
+.p-datatable {
+  background: transparent;
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+.p-datatable .p-datatable-tbody > tr {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.p-datatable .p-datatable-tbody > tr:nth-child(even) {
+  background: #293548;
+}
+
+.p-datatable .p-datatable-tbody > tr:hover {
+  background: var(--bg-tertiary);
+}
+
+.p-datatable .p-datatable-tbody > tr > td {
+  border-color: var(--border-secondary);
+}
+
+/* Dialog */
+.p-dialog {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.p-dialog .p-dialog-header {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.p-dialog .p-dialog-content {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.p-dialog .p-dialog-footer {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
+}
+
+/* Form Inputs */
+.p-inputtext,
+.p-select,
+.p-textarea {
+  background: var(--bg-primary);
+  border-color: var(--border-secondary);
+  color: var(--text-secondary);
+}
+
+.p-inputtext:enabled:focus,
+.p-select:not(.p-disabled):focus,
+.p-textarea:enabled:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.p-select-overlay {
+  background: var(--bg-secondary);
+  border-color: var(--border-primary);
+}
+
+.p-select-option {
+  color: var(--text-secondary);
+}
+
+.p-select-option:hover {
+  background: var(--bg-tertiary);
+}
+
+/* Buttons - improve contrast */
+.p-button {
+  font-weight: 500;
+}
+
+.p-button.p-button-text {
+  color: var(--text-muted);
+}
+
+.p-button.p-button-text:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
