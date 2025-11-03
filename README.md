@@ -4,6 +4,7 @@ A full-stack application to manage job applications, contacts, and companies wit
 
 ## 🚀 Tech Stack
 
+- **Frontend**: Vue 3 + PrimeVue + Vite
 - **Backend**: Node.js + TypeScript + Apollo Server + Prisma
 - **Database**: PostgreSQL 16
 - **API**: GraphQL with Apollo Server
@@ -20,16 +21,15 @@ A full-stack application to manage job applications, contacts, and companies wit
 ### Start Everything
 
 ```bash
-# Clone and enter the project
-git clone <your-repo-url>
-cd my-job-tracker
-
-# Start all services
 docker-compose up --build
+
+cd frontend
+pnpm run dev
 ```
 
 ### Access Services
 
+- **Web app**: `localhost:5173` (usually)
 - **GraphQL API**: http://localhost:4000
 - **Prisma Studio**: http://localhost:5555
 - **PostgreSQL**: `localhost:5432`
@@ -129,6 +129,11 @@ pnpm prisma:migrate:dev
 
 # Start dev server
 pnpm dev:all  # Starts both GraphQL server and Prisma Studio
+
+cd ../frontend
+
+# Start dev server for frontend
+pnpm dev
 ```
 
 ## 🗄️ Data Models
